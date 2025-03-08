@@ -1,0 +1,332 @@
+/* Base Styles */
+:root {
+    --primary-color: #007AFF;
+    --secondary-color: #FF9500;
+    --background-color: #F5F5F7;
+    --card-color: #FFFFFF;
+    --text-color: #1D1D1F;
+    --light-text: #86868B;
+    --success-color: #34C759;
+    --danger-color: #FF3B30;
+    --border-radius: 12px;
+    --shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.container {
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 0 20px;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+h1 {
+    font-weight: 600;
+    font-size: 28px;
+    letter-spacing: -0.5px;
+}
+
+/* Video Frame */
+.video-frame {
+    position: relative;
+    background-color: var(--card-color);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    aspect-ratio: 16 / 9;
+    margin-bottom: 24px;
+}
+
+.video-feed {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.status-indicator {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background-color: rgba(0, 0, 0, 0.6);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+/* Controls */
+.controls {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.btn {
+    flex: 1;
+    padding: 14px 20px;
+    border: none;
+    border-radius: var(--border-radius);
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.btn:active {
+    transform: scale(0.98);
+}
+
+.primary {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.primary:hover {
+    background-color: #0071EB;
+}
+
+.secondary {
+    background-color: var(--secondary-color);
+    color: white;
+}
+
+.secondary:hover {
+    background-color: #F08800;
+}
+
+.active-simulation {
+    background-color: var(--danger-color) !important;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.8; }
+    100% { opacity: 1; }
+}
+
+/* Status Bar */
+.status-bar {
+    background-color: var(--card-color);
+    border-radius: var(--border-radius);
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    box-shadow: var(--shadow);
+}
+
+.status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: var(--success-color);
+    margin-right: 12px;
+}
+
+#status-text {
+    font-size: 16px;
+    color: var(--light-text);
+}
+
+#feed-status {
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .container {
+        margin: 20px auto;
+    }
+    
+    .controls {
+        flex-direction: column;
+    }
+    
+    .btn {
+        width: 100%;
+    }
+}
+
+/* Add this to your existing CSS */
+.signal-meter {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    display: flex;
+    gap: 3px;
+}
+
+.signal-bar {
+    width: 4px;
+    height: 16px;
+    background-color: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
+}
+
+.signal-bar.active {
+    background-color: rgba(255, 255, 255, 0.9);
+}
+
+.signal-bar:nth-child(2) {
+    height: 12px;
+}
+
+.signal-bar:nth-child(3) {
+    height: 8px;
+}
+
+.signal-bar:nth-child(4) {
+    height: 4px;
+}
+
+/* Wave Animation */
+.wave-container {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 40px;
+    overflow: hidden;
+    background-color: rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.wave {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 200%;
+    height: 100%;
+    background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 350 100" xmlns="http://www.w3.org/2000/svg"><path d="M0 50 C 50 30, 100 70, 150 50 C 200 30, 250 70, 300 50 C 350 30, 400 70, 450 50 C 500 30, 550 70, 600 50 C 650 30, 700 70, 750 50" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="2" /></svg>');
+    background-repeat: repeat-x;
+    background-position: 0 bottom;
+    animation: wave 10s linear infinite;
+}
+
+.wave.wave2 {
+    animation: wave2 8s linear infinite;
+    opacity: 0.7;
+}
+
+.wave.wave3 {
+    animation: wave3 6s linear infinite;
+    opacity: 0.5;
+}
+
+@keyframes wave {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+
+@keyframes wave2 {
+    0% { transform: translateX(-25%) scaleY(0.8); }
+    100% { transform: translateX(-75%) scaleY(0.8); }
+}
+
+@keyframes wave3 {
+    0% { transform: translateX(-35%) scaleY(0.6); }
+    100% { transform: translateX(-85%) scaleY(0.6); }
+}
+
+.simulating .wave {
+    animation-duration: 3s;
+}
+
+.simulating .wave.wave2 {
+    animation-duration: 2.5s;
+}
+
+.simulating .wave.wave3 {
+    animation-duration: 2s;
+}
+
+/* Signal strength meter with animation */
+.signal-strength {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    width: 60px;
+    height: 30px;
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    z-index: 10;
+}
+
+.signal-bar {
+    flex: 1;
+    background-color: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
+    transition: height 0.3s ease, background-color 0.3s ease;
+}
+
+.signal-bar.active {
+    background-color: rgba(255, 255, 255, 0.9);
+}
+
+.signal-bar:nth-child(1) {
+    height: 30%;
+}
+
+.signal-bar:nth-child(2) {
+    height: 50%;
+}
+
+.signal-bar:nth-child(3) {
+    height: 70%;
+}
+
+.signal-bar:nth-child(4) {
+    height: 90%;
+}
+
+.simulating .signal-bar {
+    animation: signal-fluctuate 2s infinite;
+}
+
+.simulating .signal-bar:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.simulating .signal-bar:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+.simulating .signal-bar:nth-child(4) {
+    animation-delay: 0.6s;
+}
+
+@keyframes signal-fluctuate {
+    0% { height: 10%; background-color: rgba(255, 255, 255, 0.3); }
+    25% { height: 90%; background-color: rgba(255, 255, 255, 0.9); }
+    50% { height: 40%; background-color: rgba(255, 255, 255, 0.5); }
+    75% { height: 70%; background-color: rgba(255, 255, 255, 0.7); }
+    100% { height: 10%; background-color: rgba(255, 255, 255, 0.3); }
+} 

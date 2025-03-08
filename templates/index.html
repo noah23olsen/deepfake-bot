@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Video System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Smart Video System</h1>
+        </header>
+
+        <div class="video-frame">
+            <img src="{{ url_for('live_feed') }}" alt="Live Video Feed" id="live-video-feed" class="video-feed"
+                style="display: none;">
+            <img src="{{ url_for('backup_feed') }}" alt="Backup Video Feed" id="backup-video-feed" class="video-feed">
+            <audio id="backup-audio" src="{{ url_for('backup_video_file') }}" loop></audio>
+            <div class="status-indicator" id="status-overlay">Backup Feed</div>
+            
+            <div class="signal-strength" id="signal-meter">
+                <div class="signal-bar"></div>
+                <div class="signal-bar"></div>
+                <div class="signal-bar"></div>
+                <div class="signal-bar"></div>
+            </div>
+            
+            <div class="wave-container" id="wave-container">
+                <div class="wave"></div>
+                <div class="wave wave2"></div>
+                <div class="wave wave3"></div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="toggle-btn" class="btn primary">Switch Feed</button>
+            <button id="simulate-btn" class="btn secondary">Simulate Instability</button>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-dot" id="connection-dot"></div>
+            <span id="status-text">Current: <span id="feed-status">Backup</span></span>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+
+</html>
