@@ -5,28 +5,41 @@ import threading
 import os
 import random  # Add this import at the top
 import math  # Add this import at the top
+import requests
+import socket
 
 app = Flask(__name__)
 
 # Global variables
 connection_status = "stable"  # "stable" or "unstable"
-current_feed = "backup"  # Change this to "backup" to start with the backup video
-is_monitoring = False
+current_feed = "live"  # Start with live feed
+is_monitoring = True  # Start monitoring by default
 backup_video_path = "static/videos/backup_video.mp4"
 is_simulating = False
 simulation_thread = None
+monitor_thread = None
 
 # Mock function to check connection status (in a real app, this would check actual network quality)
 def check_connection():
     """
-    Randomly determine connection status with a bias toward stability.
-    In a real implementation, you would use actual network metrics.
+    Check actual internet connectivity with a shorter timeout for faster detection.
     """
     global connection_status
-    # 30% chance of changing status
-    if random.random() < 0.3:
-        connection_status = "unstable" if connection_status == "stable" else "stable"
-        print(f"Connection status changed to: {connection_status}")
+    
+    try:
+        # Try to connect to Google's DNS server with a shorter timeout (0.5 seconds)
+        socket.create_connection(("8.8.8.8", 53), timeout=0.5)
+        
+        # If we get here, we have internet
+        if connection_status != "stable":
+            print("Internet connection detected, switching to stable")
+            connection_status = "stable"
+    except OSError:
+        # If we get an error, we don't have internet
+        if connection_status != "unstable":
+            print("Internet connection lost, switching to unstable")
+            connection_status = "unstable"
+    
     return connection_status
 
 # Function to monitor connection in a separate thread
@@ -40,7 +53,7 @@ def connection_monitor():
         elif status == "stable" and current_feed == "backup":
             current_feed = "live"
             print("Connection stable, switching to live feed")
-        time.sleep(2)  # Check every 2 seconds instead of 5
+        time.sleep(0.5)  # Check every 0.5 seconds for faster response
 
 # Function to generate frames from the live camera
 def generate_live_frames():
@@ -122,10 +135,20 @@ def stop_monitoring():
 
 @app.route('/get_status')
 def get_status():
+    # Check if we can access a known website
+    internet_accessible = False
+    try:
+        socket.create_connection(("8.8.8.8", 53), timeout=1)
+        internet_accessible = True
+    except:
+        pass
+    
     return jsonify({
         "connection": connection_status,
         "current_feed": current_feed,
-        "monitoring": is_monitoring
+        "monitoring": is_monitoring,
+        "simulating": is_simulating,
+        "internet_accessible": internet_accessible
     })
 
 @app.route('/toggle_feed')
@@ -247,6 +270,14 @@ def main():
     if not os.path.exists(backup_video_path):
         print(f"Warning: Backup video not found at {backup_video_path}")
         print("Please place your backup video at this location.")
+    
+    # Start the monitoring thread
+    global monitor_thread
+    if monitor_thread is None:
+        monitor_thread = threading.Thread(target=connection_monitor)
+        monitor_thread.daemon = True
+        monitor_thread.start()
+        print("Connection monitoring started automatically")
     
     app.run(debug=True, threaded=True)
 

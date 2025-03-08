@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Function to update status display
     function updateStatus() {
-        fetch('/get_status')
+        fetch('/get_status', { timeout: 500 })  // Add a timeout to the fetch request
             .then(response => response.json())
             .then(data => {
                 // Update connection status
@@ -30,8 +30,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Update wave animation
                     waveContainer.style.opacity = '0.5';
                     document.querySelectorAll('.wave').forEach(wave => {
-                        wave.style.animationDuration = '10s, 8s, 6s';
+                        wave.style.animationDuration = '10s';
                     });
+                    
+                    // Check less frequently when stable
+                    if (window.statusInterval) clearInterval(window.statusInterval);
+                    window.statusInterval = setInterval(updateStatus, 1000);
                 } else {
                     connectionDot.style.backgroundColor = '#FF3B30'; // Red
                     
@@ -42,8 +46,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Update wave animation
                     waveContainer.style.opacity = '1';
                     document.querySelectorAll('.wave').forEach(wave => {
-                        wave.style.animationDuration = '3s, 2.5s, 2s';
+                        wave.style.animationDuration = '3s';
                     });
+                    
+                    // Check more frequently when unstable
+                    if (window.statusInterval) clearInterval(window.statusInterval);
+                    window.statusInterval = setInterval(updateStatus, 500);
                 }
                 
                 // Update feed status
@@ -60,8 +68,26 @@ document.addEventListener('DOMContentLoaded', function() {
                     backupVideoFeed.style.display = 'block';
                     backupAudio.play().catch(e => console.log('Audio play prevented by browser policy'));
                 }
+                
+                // Show internet status
+                if (!data.internet_accessible && !data.simulating) {
+                    statusOverlay.textContent = 'No Internet Connection';
+                    statusOverlay.classList.add('error');
+                } else {
+                    statusOverlay.classList.remove('error');
+                }
             })
-            .catch(error => console.error('Error fetching status:', error));
+            .catch(error => {
+                console.error('Error fetching status:', error);
+                // If we can't even fetch status, we definitely have connection issues
+                connectionDot.style.backgroundColor = '#FF3B30'; // Red
+                statusOverlay.textContent = 'No Internet Connection';
+                statusOverlay.classList.add('error');
+                
+                // Check more frequently when there's an error
+                if (window.statusInterval) clearInterval(window.statusInterval);
+                window.statusInterval = setInterval(updateStatus, 500);
+            });
     }
     
     function updateSignalBars(activeCount) {
@@ -76,7 +102,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Start periodic status updates
     updateStatus();
-    setInterval(updateStatus, 1000);
+    window.statusInterval = setInterval(updateStatus, 1000);
     
     // Toggle feed button
     toggleBtn.addEventListener('click', function() {
@@ -120,4 +146,25 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => console.error('Error with simulation:', error));
     });
+
+    // Add this function to directly check network status from the browser
+    function checkNetworkStatus() {
+        if (!navigator.onLine) {
+            connectionDot.style.backgroundColor = '#FF3B30'; // Red
+            statusOverlay.textContent = 'No Internet Connection';
+            statusOverlay.classList.add('error');
+            
+            // Force switch to backup feed
+            liveVideoFeed.style.display = 'none';
+            backupVideoFeed.style.display = 'block';
+            backupAudio.play().catch(e => console.log('Audio play prevented by browser policy'));
+        }
+    }
+
+    // Add event listeners for online/offline events
+    window.addEventListener('online', updateStatus);
+    window.addEventListener('offline', checkNetworkStatus);
+
+    // Check network status every 500ms
+    setInterval(checkNetworkStatus, 500);
 }); 
