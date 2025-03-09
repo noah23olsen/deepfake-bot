@@ -142,6 +142,29 @@
         .connecting {
             animation: connecting 2s infinite;
         }
+
+        .demo-button {
+            background-color: #e74c3c;
+            animation: pulse 2s infinite;
+        }
+
+        .demo-button:hover {
+            background-color: #c0392b;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.1);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
     </style>
 </head>
 
@@ -173,19 +196,22 @@
         </div>
         <div class="controls">
             <button class="control-button" id="toggleFeedBtn" title="Toggle Feed">🔄</button>
-            <button class="control-button" id="simulateBtn" title="Simulate Instability">📶</button>
+            <button class="control-button demo-button" id="simulateBtn"
+                title="DEMO: Simulate WiFi Instability">📶</button>
             <button class="control-button" id="monitorBtn" title="Toggle Monitoring">👁️</button>
         </div>
     </div>
 
     <script>
-        // Update status every second
+        // Update status more frequently (every 500ms instead of 1000ms)
         setInterval(function () {
             fetch('/get_status')
                 .then(response => response.json())
                 .then(data => {
                     const statusElement = document.getElementById('connectionStatus');
                     statusElement.textContent = data.connection.charAt(0).toUpperCase() + data.connection.slice(1);
+
+                    console.log("Connection status:", data.connection); // Add logging
 
                     // Update connection status indicator
                     if (data.connection === 'stable') {
@@ -200,9 +226,21 @@
                         // Hide video, show placeholder
                         document.getElementById('yourVideo').classList.add('hidden');
                         document.getElementById('noVideoPlaceholder').classList.remove('hidden');
+                        console.log("Showing disconnected placeholder"); // Add logging
                     }
+                })
+                .catch(error => {
+                    // If we can't reach the server, we're definitely disconnected
+                    console.log("Error fetching status, likely disconnected:", error);
+                    const statusElement = document.getElementById('connectionStatus');
+                    statusElement.textContent = 'Unstable';
+                    statusElement.className = 'status-unstable';
+
+                    // Hide video, show placeholder
+                    document.getElementById('yourVideo').classList.add('hidden');
+                    document.getElementById('noVideoPlaceholder').classList.remove('hidden');
                 });
-        }, 1000);
+        }, 500); // Check twice per second
 
         // Button event listeners
         document.getElementById('toggleFeedBtn').addEventListener('click', function () {

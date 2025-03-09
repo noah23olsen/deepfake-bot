@@ -33,11 +33,16 @@ def check_connection():
             print("Internet connection detected, switching to stable")
             connection_status = "stable"
             last_connection_change = time.time()
+            
+            # If we were on backup feed due to connection issues, switch back to live
+            if current_feed == "backup":
+                current_feed = "live"
     except OSError:
         # If we get an error, we don't have internet
         if connection_status != "unstable":
             print("Internet connection lost, switching to unstable")
             connection_status = "unstable"
+            current_feed = "backup"
             last_connection_change = time.time()
             
             # Play the "um" sound when connection drops
@@ -83,14 +88,16 @@ def play_um_sound():
 def connection_monitor():
     global is_monitoring, connection_status, current_feed
     while is_monitoring:
-        status = check_connection()
-        if status == "unstable" and current_feed == "live":
-            current_feed = "backup"
-            print("Connection unstable, switching to backup feed")
-        elif status == "stable" and current_feed == "backup":
-            current_feed = "live"
-            print("Connection stable, switching to live feed")
-        time.sleep(0.5)  # Check every 0.5 seconds for faster response
+        try:
+            status = check_connection()
+            
+            # The check_connection function now handles the simulation,
+            # so we don't need to do anything else here
+            
+            time.sleep(0.5)  # Check every 0.5 seconds for faster response
+        except Exception as e:
+            print(f"Error in connection monitor: {e}")
+            time.sleep(1)  # Wait a bit longer if there's an error
 
 # Function to generate frames from the live camera
 def generate_live_frames():
@@ -259,64 +266,77 @@ def stop_monitoring():
     is_monitoring = False
     return jsonify({"status": "success", "message": "Connection monitoring stopped"})
 
-@app.route('/simulate_rapid_switching')
-def simulate_rapid_switching():
+# Shared function for both real and simulated connection issues
+def simulate_connection_issue(trigger_reason="Manually triggered"):
     """
-    Simple simulation that:
+    Handles both real and simulated connection issues:
     1. Switches to unstable connection
     2. Plays the "um" sound
-    3. Waits 6 seconds
-    4. Switches back to stable connection
+    3. Switches to backup feed
+    4. For simulated issues only: switches back after 6 seconds
     """
-    # Force the connection to unstable immediately
-    global connection_status, current_feed, is_monitoring
-    
-    # Temporarily disable monitoring to prevent interference
-    original_monitoring_state = is_monitoring
-    is_monitoring = False
+    global connection_status, current_feed, is_playing_um
     
     # Switch to unstable connection right away
     connection_status = "unstable"
     current_feed = "backup"  # Make sure to switch to backup feed
-    print("Connection set to unstable")
+    print(f"Connection set to unstable - {trigger_reason}")
     
-    # Play the "um" sound immediately
-    if os.path.exists(um_audio_path):
-        try:
-            # For macOS
-            if os.path.exists('/usr/bin/afplay'):
-                subprocess.Popen(['afplay', um_audio_path])
-            # For Windows
-            elif os.name == 'nt':
-                os.system(f'start {um_audio_path}')
-            # For Linux
-            else:
-                for player in ['aplay', 'paplay', 'mplayer', 'mpg123']:
-                    try:
-                        subprocess.Popen([player, um_audio_path])
-                        break
-                    except FileNotFoundError:
-                        continue
-        except Exception as e:
-            print(f"Error playing sound: {e}")
+    # Play the "um" sound if not already playing
+    if not is_playing_um and os.path.exists(um_audio_path):
+        threading.Thread(target=play_um_sound).start()
+    
+    # For simulated issues (not real outages), switch back after a delay
+    if "Real" not in trigger_reason:
+        # Schedule switching back after 6 seconds
+        def switch_back():
+            time.sleep(6)
+            global connection_status, current_feed
+            connection_status = "stable"
+            current_feed = "live"  # Switch back to live feed
+            print(f"Connection set back to stable after simulation ({trigger_reason})")
+        
+        # Start the timer in a separate thread
+        t = threading.Thread(target=switch_back)
+        t.daemon = True
+        t.start()
+    
+    return {"status": "success", "message": f"Simulating unstable connection - {trigger_reason}"}
+
+@app.route('/simulate_rapid_switching')
+def simulate_rapid_switching():
+    """Route handler for the simulation button"""
+    global connection_status, current_feed, is_playing_um
+    
+    # Set connection to unstable
+    connection_status = "unstable"
+    
+    # Switch to backup feed
+    current_feed = "backup"
+    
+    # Play the "um" sound if not already playing
+    if not is_playing_um and os.path.exists(um_audio_path):
+        threading.Thread(target=play_um_sound).start()
     
     # Schedule switching back after 6 seconds
     def switch_back():
         time.sleep(6)
-        global connection_status, current_feed, is_monitoring
+        global connection_status, current_feed
         connection_status = "stable"
-        current_feed = "live"  # Switch back to live feed
-        # Restore original monitoring state
-        is_monitoring = original_monitoring_state
-        print("Connection set back to stable")
+        current_feed = "live"
+        print("Connection set back to stable after simulation")
     
     # Start the timer in a separate thread
     t = threading.Thread(target=switch_back)
     t.daemon = True
     t.start()
     
-    # Return immediately
-    return jsonify({"status": "success", "message": "Simulating unstable connection"})
+    return jsonify({
+        "status": "success", 
+        "message": "Simulating unstable connection",
+        "connection": connection_status,
+        "current_feed": current_feed
+    })
 
 @app.route('/zoom')
 def zoom_interface():
