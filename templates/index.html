@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Video System</title>
+    <title>Live Feed with Transcription</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap">
 </head>
@@ -12,24 +12,24 @@
 <body>
     <div class="container">
         <header>
-            <h1>Smart Video System</h1>
+            <h1>Live Video Feed with Transcription</h1>
         </header>
 
         <div class="video-frame">
-            <img src="{{ url_for('live_feed') }}" alt="Live Video Feed" id="live-video-feed" class="video-feed"
-                style="display: none;">
-            <img src="{{ url_for('backup_feed') }}" alt="Backup Video Feed" id="backup-video-feed" class="video-feed">
-            <audio id="backup-audio" src="{{ url_for('backup_video_file') }}" loop></audio>
-            <div class="status-indicator" id="status-overlay">Backup Feed</div>
+            <img id="live-video-feed" class="video-feed" src="{{ url_for('live_feed') }}" alt="Live Feed">
+            <img id="backup-video-feed" class="video-feed" src="{{ url_for('backup_feed') }}" alt="Backup Feed"
+                style="display:none;">
+            <audio id="backup-audio" src="{{ url_for('backup_video') }}" loop></audio>
+            <div id="status-overlay" class="status-indicator">Live Feed</div>
 
-            <div class="signal-strength" id="signal-meter">
+            <div id="signal-meter" class="signal-strength">
                 <div class="signal-bar"></div>
                 <div class="signal-bar"></div>
                 <div class="signal-bar"></div>
                 <div class="signal-bar"></div>
             </div>
 
-            <div class="wave-container" id="wave-container">
+            <div id="wave-container" class="wave-container">
                 <div class="wave"></div>
                 <div class="wave wave2"></div>
                 <div class="wave wave3"></div>
@@ -37,13 +37,21 @@
         </div>
 
         <div class="controls">
-            <button id="toggle-btn" class="btn primary">Switch Feed</button>
+            <button id="toggle-btn" class="btn primary">Toggle Feed</button>
             <button id="simulate-btn" class="btn secondary">Simulate Instability</button>
         </div>
 
         <div class="status-bar">
-            <div class="status-dot" id="connection-dot"></div>
-            <span id="status-text">Current: <span id="feed-status">Backup</span></span>
+            <div id="connection-dot" class="status-dot"></div>
+            <div id="status-text">Current feed: <span id="feed-status">Live</span></div>
+        </div>
+
+        <!-- Dedicated Transcription Section -->
+        <div class="transcription-section">
+            <h2>Live Transcription</h2>
+            <div id="transcription-display" class="transcription-box">
+                Waiting for speech...
+            </div>
         </div>
     </div>
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>

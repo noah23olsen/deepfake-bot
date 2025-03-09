@@ -7,6 +7,7 @@ import random  # Add this import at the top
 import math  # Add this import at the top
 import requests
 import socket
+import speech_recognition as sr  # Import the SpeechRecognition library
 
 app = Flask(__name__)
 
@@ -18,6 +19,8 @@ backup_video_path = "static/videos/backup_video.mp4"
 is_simulating = False
 simulation_thread = None
 monitor_thread = None
+is_transcribing = True
+transcription_buffer = []  # Store the last transcriptions
 
 # Mock function to check connection status (in a real app, this would check actual network quality)
 def check_connection():
@@ -148,7 +151,9 @@ def get_status():
         "current_feed": current_feed,
         "monitoring": is_monitoring,
         "simulating": is_simulating,
-        "internet_accessible": internet_accessible
+        "internet_accessible": internet_accessible,
+        "transcription": transcription_buffer[-1] if transcription_buffer else "",
+        "full_transcript": transcription_buffer
     })
 
 @app.route('/toggle_feed')
@@ -259,6 +264,41 @@ def backup_video():
 def backup_video_file():
     return send_from_directory('static/videos', 'backup_video.mp4')
 
+@app.route('/start_transcription')
+def start_transcription_route():
+    """Start the transcription process in a separate thread."""
+    threading.Thread(target=transcribe_microphone).start()
+    return jsonify({"status": "success", "message": "Transcription started"})
+
+def start_transcription():
+    """Start the transcription process directly (without HTTP request)."""
+    threading.Thread(target=transcribe_microphone).start()
+    print("Transcription started")
+
+def transcribe_microphone():
+    """Transcribe audio from microphone in real-time."""
+    global transcription_buffer
+    recognizer = sr.Recognizer()
+    
+    with sr.Microphone() as source:
+        print("Adjusting for ambient noise...")
+        recognizer.adjust_for_ambient_noise(source)  # Adjust for ambient noise
+        print("Listening...")
+        
+        while True:
+            try:
+                audio = recognizer.listen(source, timeout=5)  # Listen for audio
+                print("Recognizing...")
+                transcription = recognizer.recognize_google(audio)  
+                print(f"Transcribed: {transcription}")
+                transcription_buffer.append(transcription)  # Store the transcription
+            except sr.UnknownValueError:
+                print("Could not understand audio")
+            except sr.RequestError as e:
+                print(f"Could not request results; {e}")
+            except Exception as e:
+                print(f"An error occurred: {e}")
+
 def main():
     """
     Main function that serves as the entry point of the program.
@@ -278,6 +318,9 @@ def main():
         monitor_thread.daemon = True
         monitor_thread.start()
         print("Connection monitoring started automatically")
+    
+    # Start transcription directly (not through a route)
+    start_transcription()
     
     app.run(debug=True, threaded=True)
 

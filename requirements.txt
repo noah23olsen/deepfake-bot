@@ -1,4 +1,7 @@
 Flask==3.0.0
 Werkzeug==3.0.1
 opencv-python==4.8.1.78
-numpy==1.23.5 
+numpy==1.23.5
+SpeechRecognition
+pyaudio
+sounddevice 
