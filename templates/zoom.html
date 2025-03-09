@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zoom-like Interface</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #1a1a1a;
+            color: white;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        .zoom-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .video-container {
+            display: flex;
+            flex: 1;
+            padding: 10px;
+            gap: 10px;
+        }
+
+        .video-feed {
+            flex: 1;
+            background-color: #2d2d2d;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .video-feed img,
+        .video-feed video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            padding: 15px;
+            background-color: #2d2d2d;
+            gap: 15px;
+        }
+
+        .control-button {
+            background-color: #484848;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .control-button:hover {
+            background-color: #666666;
+        }
+
+        .name-tag {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+
+        .status-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+
+        .status-stable {
+            color: #4caf50;
+        }
+
+        .status-unstable {
+            color: #f44336;
+        }
+
+        .no-video {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            background-color: #3a3a3a;
+        }
+
+        .no-video-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: #666;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+            font-size: 40px;
+        }
+
+        .no-video-text {
+            font-size: 16px;
+            color: #ccc;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @keyframes connecting {
+            0% {
+                opacity: 0.5;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.5;
+            }
+        }
+
+        .connecting {
+            animation: connecting 2s infinite;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="zoom-container">
+        <div class="video-container">
+            <div class="video-feed">
+                <!-- Live video feed -->
+                <img id="yourVideo" src="{{ url_for('video_feed') }}" alt="Your Video">
+
+                <!-- No video placeholder (hidden by default) -->
+                <div id="noVideoPlaceholder" class="no-video hidden">
+                    <div class="no-video-icon connecting">📷</div>
+                    <div class="no-video-text">Camera disconnected...</div>
+                </div>
+
+                <div class="name-tag">You</div>
+                <div class="status-indicator">
+                    Connection: <span id="connectionStatus" class="status-stable">Stable</span>
+                </div>
+            </div>
+            <div class="video-feed">
+                <video id="vcVideo" autoplay loop muted>
+                    <source src="{{ url_for('vc_video') }}" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+                <div class="name-tag">VC</div>
+            </div>
+        </div>
+        <div class="controls">
+            <button class="control-button" id="toggleFeedBtn" title="Toggle Feed">🔄</button>
+            <button class="control-button" id="simulateBtn" title="Simulate Instability">📶</button>
+            <button class="control-button" id="monitorBtn" title="Toggle Monitoring">👁️</button>
+        </div>
+    </div>
+
+    <script>
+        // Update status every second
+        setInterval(function () {
+            fetch('/get_status')
+                .then(response => response.json())
+                .then(data => {
+                    const statusElement = document.getElementById('connectionStatus');
+                    statusElement.textContent = data.connection.charAt(0).toUpperCase() + data.connection.slice(1);
+
+                    // Update connection status indicator
+                    if (data.connection === 'stable') {
+                        statusElement.className = 'status-stable';
+
+                        // Show video, hide placeholder
+                        document.getElementById('yourVideo').classList.remove('hidden');
+                        document.getElementById('noVideoPlaceholder').classList.add('hidden');
+                    } else {
+                        statusElement.className = 'status-unstable';
+
+                        // Hide video, show placeholder
+                        document.getElementById('yourVideo').classList.add('hidden');
+                        document.getElementById('noVideoPlaceholder').classList.remove('hidden');
+                    }
+                });
+        }, 1000);
+
+        // Button event listeners
+        document.getElementById('toggleFeedBtn').addEventListener('click', function () {
+            fetch('/toggle_feed')
+                .then(response => response.json())
+                .then(data => console.log('Feed toggled:', data));
+        });
+
+        document.getElementById('simulateBtn').addEventListener('click', function () {
+            fetch('/simulate_rapid_switching')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Simulation started:', data);
+
+                    // Immediately update UI to show unstable connection
+                    const statusElement = document.getElementById('connectionStatus');
+                    statusElement.textContent = 'Unstable';
+                    statusElement.className = 'status-unstable';
+
+                    // Hide video, show placeholder
+                    document.getElementById('yourVideo').classList.add('hidden');
+                    document.getElementById('noVideoPlaceholder').classList.remove('hidden');
+
+                    // After 6 seconds, switch back to stable if not polling already
+                    setTimeout(function () {
+                        // This will be overridden by the polling if the server has already switched back
+                        document.getElementById('yourVideo').classList.remove('hidden');
+                        document.getElementById('noVideoPlaceholder').classList.add('hidden');
+                        statusElement.textContent = 'Stable';
+                        statusElement.className = 'status-stable';
+                    }, 6000);
+                });
+        });
+
+        document.getElementById('monitorBtn').addEventListener('click', function () {
+            fetch('/toggle_monitoring')
+                .then(response => response.json())
+                .then(data => console.log('Monitoring toggled:', data));
+        });
+    </script>
+</body>
+
+</html>

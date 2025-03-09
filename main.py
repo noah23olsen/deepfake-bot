@@ -3,11 +3,8 @@ import cv2
 import time
 import threading
 import os
-import random  # Add this import at the top
-import math  # Add this import at the top
-import requests
 import socket
-import speech_recognition as sr  # Import the SpeechRecognition library
+import subprocess  # For playing audio without pygame
 
 app = Flask(__name__)
 
@@ -16,18 +13,16 @@ connection_status = "stable"  # "stable" or "unstable"
 current_feed = "live"  # Start with live feed
 is_monitoring = True  # Start monitoring by default
 backup_video_path = "static/videos/backup_video.mp4"
-is_simulating = False
-simulation_thread = None
-monitor_thread = None
-is_transcribing = True
-transcription_buffer = []  # Store the last transcriptions
+um_audio_path = "static/audio/um_filler.mp3"  # Path to pre-recorded um file
+last_connection_change = 0  # Track when connection status last changed
+is_playing_um = False  # Flag to prevent multiple simultaneous playbacks
 
-# Mock function to check connection status (in a real app, this would check actual network quality)
+# Function to check connection status
 def check_connection():
     """
     Check actual internet connectivity with a shorter timeout for faster detection.
     """
-    global connection_status
+    global connection_status, last_connection_change, is_playing_um
     
     try:
         # Try to connect to Google's DNS server with a shorter timeout (0.5 seconds)
@@ -37,13 +32,52 @@ def check_connection():
         if connection_status != "stable":
             print("Internet connection detected, switching to stable")
             connection_status = "stable"
+            last_connection_change = time.time()
     except OSError:
         # If we get an error, we don't have internet
         if connection_status != "unstable":
             print("Internet connection lost, switching to unstable")
             connection_status = "unstable"
+            last_connection_change = time.time()
+            
+            # Play the "um" sound when connection drops
+            if not is_playing_um and os.path.exists(um_audio_path):
+                threading.Thread(target=play_um_sound).start()
     
     return connection_status
+
+# Function to play the "um" sound using system commands
+def play_um_sound():
+    """Play the um filler sound when connection drops using system commands"""
+    global is_playing_um
+    
+    try:
+        is_playing_um = True
+        print("Playing um sound...")
+        
+        # Determine the OS and use appropriate command to play audio
+        if os.name == 'nt':  # Windows
+            os.system(f'start {um_audio_path}')
+        elif os.name == 'posix':  # macOS or Linux
+            # Check if we're on macOS
+            if os.path.exists('/usr/bin/afplay'):  # macOS
+                subprocess.run(['afplay', um_audio_path])
+            else:  # Linux
+                # Try different players
+                players = ['aplay', 'paplay', 'mplayer', 'mpg123']
+                for player in players:
+                    try:
+                        subprocess.run([player, um_audio_path], check=False)
+                        break
+                    except FileNotFoundError:
+                        continue
+        
+        time.sleep(2)  # Give some time for the audio to play
+        is_playing_um = False
+        print("Um sound finished")
+    except Exception as e:
+        print(f"Error playing um sound: {e}")
+        is_playing_um = False
 
 # Function to monitor connection in a separate thread
 def connection_monitor():
@@ -102,16 +136,6 @@ def generate_backup_frames():
 def index():
     return render_template('index.html')
 
-@app.route('/live_feed')
-def live_feed():
-    return Response(generate_live_frames(),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
-
-@app.route('/backup_feed')
-def backup_feed():
-    return Response(generate_backup_frames(),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
-
 @app.route('/video_feed')
 def video_feed():
     if current_feed == "live":
@@ -121,20 +145,32 @@ def video_feed():
         return Response(generate_backup_frames(),
                         mimetype='multipart/x-mixed-replace; boundary=frame')
 
-@app.route('/start_monitoring')
-def start_monitoring():
-    global is_monitoring
-    if not is_monitoring:
-        is_monitoring = True
-        threading.Thread(target=connection_monitor).start()
-        return jsonify({"status": "success", "message": "Connection monitoring started"})
-    return jsonify({"status": "info", "message": "Monitoring already running"})
+@app.route('/live_feed')
+def live_feed():
+    """Route for live feed - redirects to video_feed"""
+    return Response(generate_live_frames(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
 
-@app.route('/stop_monitoring')
-def stop_monitoring():
-    global is_monitoring
-    is_monitoring = False
-    return jsonify({"status": "success", "message": "Connection monitoring stopped"})
+@app.route('/backup_feed')
+def backup_feed():
+    """Route for backup feed - redirects to video_feed"""
+    return Response(generate_backup_frames(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route('/backup_video')
+def backup_video():
+    """Route to serve the backup video file"""
+    return send_from_directory('static/videos', 'backup_video.mp4')
+
+@app.route('/backup_video_file')
+def backup_video_file():
+    """Alternative route to serve the backup video file"""
+    return send_from_directory('static/videos', 'backup_video.mp4')
+
+@app.route('/vc_video')
+def vc_video():
+    """Serve the VC video file"""
+    return send_from_directory('static/videos', 'vc_video.mp4')
 
 @app.route('/get_status')
 def get_status():
@@ -150,26 +186,20 @@ def get_status():
         "connection": connection_status,
         "current_feed": current_feed,
         "monitoring": is_monitoring,
-        "simulating": is_simulating,
-        "internet_accessible": internet_accessible,
-        "transcription": transcription_buffer[-1] if transcription_buffer else "",
-        "full_transcript": transcription_buffer
+        "internet_accessible": internet_accessible
     })
-
-@app.route('/toggle_feed')
-def toggle_feed():
-    global current_feed
-    current_feed = "backup" if current_feed == "live" else "live"
-    return jsonify({"status": "success", "current_feed": current_feed})
 
 @app.route('/simulate_poor_connection')
 def simulate_poor_connection():
     global connection_status, current_feed
     connection_status = "unstable"
     
-    # If monitoring is active and we're on live feed, switch to backup
-    if is_monitoring and current_feed == "live":
-        current_feed = "backup"
+    # Always switch to backup feed when simulating poor connection
+    current_feed = "backup"
+    
+    # Play the "um" sound when simulating connection drop
+    if os.path.exists(um_audio_path):
+        threading.Thread(target=play_um_sound).start()
     
     return jsonify({
         "status": "success", 
@@ -194,117 +224,131 @@ def reset_connection():
         "current_feed": current_feed
     })
 
+# Add this function to create the um filler audio if it doesn't exist
+def create_um_filler_audio():
+    """Create a filler audio file with 'um...' sounds if it doesn't exist"""
+    if os.path.exists(um_audio_path):
+        return
+    
+    # Ensure directory exists
+    os.makedirs(os.path.dirname(um_audio_path), exist_ok=True)
+    
+    print(f"Warning: Um filler audio not found at {um_audio_path}")
+    print("Please place your um filler audio at this location.")
+
+@app.route('/toggle_feed')
+def toggle_feed():
+    global current_feed
+    current_feed = "backup" if current_feed == "live" else "live"
+    return jsonify({"status": "success", "current_feed": current_feed})
+
+@app.route('/start_monitoring')
+def start_monitoring():
+    global is_monitoring, monitor_thread
+    if not is_monitoring:
+        is_monitoring = True
+        monitor_thread = threading.Thread(target=connection_monitor)
+        monitor_thread.daemon = True
+        monitor_thread.start()
+        return jsonify({"status": "success", "message": "Connection monitoring started"})
+    return jsonify({"status": "info", "message": "Monitoring already running"})
+
+@app.route('/stop_monitoring')
+def stop_monitoring():
+    global is_monitoring
+    is_monitoring = False
+    return jsonify({"status": "success", "message": "Connection monitoring stopped"})
+
 @app.route('/simulate_rapid_switching')
 def simulate_rapid_switching():
-    global is_simulating, simulation_thread
+    """
+    Simple simulation that:
+    1. Switches to unstable connection
+    2. Plays the "um" sound
+    3. Waits 6 seconds
+    4. Switches back to stable connection
+    """
+    # Force the connection to unstable immediately
+    global connection_status, current_feed, is_monitoring
     
-    if is_simulating:
-        # Stop the simulation if it's already running
-        is_simulating = False
-        if simulation_thread and simulation_thread.is_alive():
-            simulation_thread.join(timeout=1.0)
-        return jsonify({
-            "status": "success", 
-            "message": "Simulation stopped",
-            "simulating": False
-        })
+    # Temporarily disable monitoring to prevent interference
+    original_monitoring_state = is_monitoring
+    is_monitoring = False
+    
+    # Switch to unstable connection right away
+    connection_status = "unstable"
+    current_feed = "backup"  # Make sure to switch to backup feed
+    print("Connection set to unstable")
+    
+    # Play the "um" sound immediately
+    if os.path.exists(um_audio_path):
+        try:
+            # For macOS
+            if os.path.exists('/usr/bin/afplay'):
+                subprocess.Popen(['afplay', um_audio_path])
+            # For Windows
+            elif os.name == 'nt':
+                os.system(f'start {um_audio_path}')
+            # For Linux
+            else:
+                for player in ['aplay', 'paplay', 'mplayer', 'mpg123']:
+                    try:
+                        subprocess.Popen([player, um_audio_path])
+                        break
+                    except FileNotFoundError:
+                        continue
+        except Exception as e:
+            print(f"Error playing sound: {e}")
+    
+    # Schedule switching back after 6 seconds
+    def switch_back():
+        time.sleep(6)
+        global connection_status, current_feed, is_monitoring
+        connection_status = "stable"
+        current_feed = "live"  # Switch back to live feed
+        # Restore original monitoring state
+        is_monitoring = original_monitoring_state
+        print("Connection set back to stable")
+    
+    # Start the timer in a separate thread
+    t = threading.Thread(target=switch_back)
+    t.daemon = True
+    t.start()
+    
+    # Return immediately
+    return jsonify({"status": "success", "message": "Simulating unstable connection"})
+
+@app.route('/zoom')
+def zoom_interface():
+    """Render the Zoom-like interface"""
+    return render_template('zoom.html')
+
+@app.route('/toggle_monitoring')
+def toggle_monitoring():
+    """Toggle the connection monitoring on/off"""
+    global is_monitoring, monitor_thread
+    
+    if is_monitoring:
+        is_monitoring = False
+        return jsonify({"status": "success", "message": "Monitoring stopped", "monitoring": False})
     else:
-        # Start the simulation
-        is_simulating = True
-        simulation_thread = threading.Thread(target=simulate_wifi_fluctuations)
-        simulation_thread.daemon = True
-        simulation_thread.start()
-        return jsonify({
-            "status": "success", 
-            "message": "Simulation started - simulating Wi-Fi fluctuations",
-            "simulating": True
-        })
-
-def simulate_wifi_fluctuations():
-    """Simulate realistic Wi-Fi signal fluctuations with a wave pattern and random elements"""
-    global is_simulating, current_feed, connection_status
-    
-    start_time = time.time()
-    duration = 20  # Total duration in seconds
-    
-    while is_simulating and (time.time() - start_time) < duration:
-        # Calculate a wave pattern based on time
-        elapsed = time.time() - start_time
-        # Wave function with period of ~5 seconds
-        wave_value = math.sin(elapsed * 0.6) 
-        
-        # Add random noise to the wave
-        noise = random.uniform(-0.3, 0.3)
-        signal_quality = wave_value + noise
-        
-        # Determine if we should switch based on signal quality
-        if signal_quality < -0.5:  # Poor signal
-            if current_feed == "live":
-                current_feed = "backup"
-                connection_status = "unstable"
-                print(f"Simulation: Signal quality low ({signal_quality:.2f}), switched to backup feed")
-        elif signal_quality > 0.5:  # Good signal
-            if current_feed == "backup":
-                current_feed = "live"
-                connection_status = "stable"
-                print(f"Simulation: Signal quality good ({signal_quality:.2f}), switched to live feed")
-        
-        # Random sleep between 0.5 and 2 seconds
-        time.sleep(random.uniform(0.5, 2.0))
-    
-    # Reset at the end
-    is_simulating = False
-    print("Simulation completed")
-
-@app.route('/backup_video')
-def backup_video():
-    return send_from_directory('static/videos', 'backup_video.mp4')
-
-@app.route('/backup_video_file')
-def backup_video_file():
-    return send_from_directory('static/videos', 'backup_video.mp4')
-
-@app.route('/start_transcription')
-def start_transcription_route():
-    """Start the transcription process in a separate thread."""
-    threading.Thread(target=transcribe_microphone).start()
-    return jsonify({"status": "success", "message": "Transcription started"})
-
-def start_transcription():
-    """Start the transcription process directly (without HTTP request)."""
-    threading.Thread(target=transcribe_microphone).start()
-    print("Transcription started")
-
-def transcribe_microphone():
-    """Transcribe audio from microphone in real-time."""
-    global transcription_buffer
-    recognizer = sr.Recognizer()
-    
-    with sr.Microphone() as source:
-        print("Adjusting for ambient noise...")
-        recognizer.adjust_for_ambient_noise(source)  # Adjust for ambient noise
-        print("Listening...")
-        
-        while True:
-            try:
-                audio = recognizer.listen(source, timeout=5)  # Listen for audio
-                print("Recognizing...")
-                transcription = recognizer.recognize_google(audio)  
-                print(f"Transcribed: {transcription}")
-                transcription_buffer.append(transcription)  # Store the transcription
-            except sr.UnknownValueError:
-                print("Could not understand audio")
-            except sr.RequestError as e:
-                print(f"Could not request results; {e}")
-            except Exception as e:
-                print(f"An error occurred: {e}")
+        is_monitoring = True
+        if not monitor_thread or not monitor_thread.is_alive():
+            monitor_thread = threading.Thread(target=connection_monitor)
+            monitor_thread.daemon = True
+            monitor_thread.start()
+        return jsonify({"status": "success", "message": "Monitoring started", "monitoring": True})
 
 def main():
     """
-    Main function that serves as the entry point of the program.
+    Main function to run the application.
     """
-    # Create the static/videos directory if it doesn't exist
+    # Create the static directories if they don't exist
     os.makedirs("static/videos", exist_ok=True)
+    os.makedirs("static/audio", exist_ok=True)
+    
+    # Create the um filler audio if it doesn't exist
+    create_um_filler_audio()
     
     # Check if backup video exists, if not, print a warning
     if not os.path.exists(backup_video_path):
@@ -313,14 +357,10 @@ def main():
     
     # Start the monitoring thread
     global monitor_thread
-    if monitor_thread is None:
-        monitor_thread = threading.Thread(target=connection_monitor)
-        monitor_thread.daemon = True
-        monitor_thread.start()
-        print("Connection monitoring started automatically")
-    
-    # Start transcription directly (not through a route)
-    start_transcription()
+    monitor_thread = threading.Thread(target=connection_monitor)
+    monitor_thread.daemon = True
+    monitor_thread.start()
+    print("Connection monitoring started automatically")
     
     app.run(debug=True, threaded=True)
 

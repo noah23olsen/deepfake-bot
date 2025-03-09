@@ -53,6 +53,17 @@
                 Waiting for speech...
             </div>
         </div>
+
+        <!-- Add this section for AI responses -->
+        <div class="ai-response-section">
+            <h2>AI Response</h2>
+            <div id="ai-response-display" class="ai-response-box">
+                No response from OpenAI...
+            </div>
+            <div id="ai-loading-message" class="loading-message" style="display: none;">
+                Making request now...
+            </div>
+        </div>
     </div>
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>

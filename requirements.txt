@@ -4,4 +4,8 @@ opencv-python==4.8.1.78
 numpy==1.23.5
 SpeechRecognition
 pyaudio
-sounddevice 
+sounddevice
+openai
+gTTS
+python-dotenv
+elevenlabs 

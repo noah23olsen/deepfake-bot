@@ -198,4 +198,62 @@ document.addEventListener('DOMContentLoaded', function () {
             })
             .catch(error => console.error('Error starting transcription:', error));
     });
+
+    // Add this to your existing JavaScript
+    let lastResponsePlayed = '';
+
+    // Function to check for and play new AI responses
+    function checkForNewResponses() {
+        const aiLoadingMessage = document.getElementById('ai-loading-message');
+        aiLoadingMessage.style.display = 'block'; // Show loading message
+
+        fetch('/get_ai_responses')
+            .then(response => response.json())
+            .then(data => {
+                console.log("AI Responses data:", data); // Debug: Log the response data
+                
+                const aiResponseDisplay = document.getElementById('ai-response-display');
+                if (data.responses && data.responses.length > 0) {
+                    console.log("Latest response:", data.responses[data.responses.length - 1]); // Debug: Log the latest response
+                    
+                    const latestResponse = data.responses[data.responses.length - 1];
+                    
+                    // Always update the display with the latest response
+                    aiResponseDisplay.textContent = latestResponse;
+                    
+                    // Only play audio if this is a new response
+                    if (latestResponse !== lastResponsePlayed) {
+                        lastResponsePlayed = latestResponse;
+                        
+                        // Play the audio response
+                        const audioPlayer = document.getElementById('ai-audio-player');
+                        if (!audioPlayer) {
+                            const newAudioPlayer = document.createElement('audio');
+                            newAudioPlayer.id = 'ai-audio-player';
+                            document.body.appendChild(newAudioPlayer);
+                        }
+                        
+                        document.getElementById('ai-audio-player').src = `/latest_response_audio?t=${new Date().getTime()}`;
+                        document.getElementById('ai-audio-player').play()
+                            .catch(e => console.log('Audio play prevented by browser policy'));
+                    }
+                } else {
+                    // If no response, show the default message
+                    aiResponseDisplay.textContent = "No response from OpenAI...";
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching AI responses:', error);
+                document.getElementById('ai-response-display').textContent = "Error fetching AI responses";
+            })
+            .finally(() => {
+                aiLoadingMessage.style.display = 'none'; // Hide loading message
+            });
+    }
+
+    // Check for new responses immediately when the page loads
+    checkForNewResponses();
+
+    // Then check every 2 seconds
+    setInterval(checkForNewResponses, 2000);
 }); 

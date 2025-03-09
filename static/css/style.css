@@ -367,4 +367,28 @@ h1 {
     min-height: 100px;
     max-height: 200px;
     overflow-y: auto;
+}
+
+.ai-response-box {
+    background-color: var(--primary-color);
+    color: white;
+    border-radius: var(--border-radius);
+    padding: 16px;
+    margin-top: 16px;
+    box-shadow: var(--shadow);
+    font-size: 16px;
+    line-height: 1.5;
+    min-height: 60px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.ai-response-box p {
+    margin: 0;
+}
+
+.loading-message {
+    color: var(--light-text);
+    font-size: 14px;
+    margin-top: 8px;
 } 
