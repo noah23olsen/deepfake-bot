@@ -144,7 +144,7 @@ def generate_backup_frames():
     
     video.release()
 
-@app.route('/')
+@app.route('/index-backup')
 def index():
     return render_template('index.html')
 
@@ -371,7 +371,7 @@ def simulate_rapid_switching():
         "current_feed": current_feed
     })
 
-@app.route('/zoom')
+@app.route('/')
 def zoom_interface():
     """Render the Zoom-like interface"""
     return render_template('zoom.html')
