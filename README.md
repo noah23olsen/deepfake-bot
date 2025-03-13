@@ -32,4 +32,8 @@ To run the application, execute the following command:
 
    After running the application, open up the web page in your browser by navigating to `http://127.0.0.1:5000/`.
 
+   <small>If using Chrome, you may need to flush your sockets at <a href="chrome://net-internals/#sockets">chrome://net-internals/#sockets</a>.</small>
+   
+
+---
    **Note:** This application is currently in beta and may exhibit some bugs. This product works well enough to half-demo, but it is super buggy. 
