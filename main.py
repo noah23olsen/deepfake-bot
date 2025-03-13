@@ -16,13 +16,18 @@ backup_video_path = "static/videos/backup_video.mp4"
 um_audio_path = "static/audio/um_filler.mp3"  # Path to pre-recorded um file
 last_connection_change = 0  # Track when connection status last changed
 is_playing_um = False  # Flag to prevent multiple simultaneous playbacks
+is_simulation_active = False  # New flag to track if a simulation is in progress
 
 # Function to check connection status
 def check_connection():
     """
     Check actual internet connectivity with a shorter timeout for faster detection.
     """
-    global connection_status, last_connection_change, is_playing_um
+    global connection_status, last_connection_change, is_playing_um, current_feed
+    
+    # Skip connection check if a simulation is active
+    if is_simulation_active:
+        return connection_status
     
     try:
         # Try to connect to Google's DNS server with a shorter timeout (0.5 seconds)
@@ -198,7 +203,11 @@ def get_status():
 
 @app.route('/simulate_poor_connection')
 def simulate_poor_connection():
-    global connection_status, current_feed
+    global connection_status, current_feed, is_simulation_active
+    
+    # Set simulation active to prevent monitoring thread from interfering
+    is_simulation_active = True
+    
     connection_status = "unstable"
     
     # Always switch to backup feed when simulating poor connection
@@ -207,6 +216,21 @@ def simulate_poor_connection():
     # Play the "um" sound when simulating connection drop
     if os.path.exists(um_audio_path):
         threading.Thread(target=play_um_sound).start()
+    
+    # Schedule switching back after 6 seconds
+    def switch_back():
+        time.sleep(6)
+        global connection_status, current_feed, is_simulation_active
+        connection_status = "stable"
+        current_feed = "live"
+        # Reset simulation flag
+        is_simulation_active = False
+        print("Connection set back to stable after simulation")
+    
+    # Start the timer in a separate thread
+    t = threading.Thread(target=switch_back)
+    t.daemon = True
+    t.start()
     
     return jsonify({
         "status": "success", 
@@ -217,7 +241,11 @@ def simulate_poor_connection():
 
 @app.route('/reset_connection')
 def reset_connection():
-    global connection_status, current_feed
+    global connection_status, current_feed, is_simulation_active
+    
+    # Clear simulation flag
+    is_simulation_active = False
+    
     connection_status = "stable"
     
     # If monitoring is active and we're on backup feed, switch to live
@@ -306,7 +334,10 @@ def simulate_connection_issue(trigger_reason="Manually triggered"):
 @app.route('/simulate_rapid_switching')
 def simulate_rapid_switching():
     """Route handler for the simulation button"""
-    global connection_status, current_feed, is_playing_um
+    global connection_status, current_feed, is_playing_um, is_simulation_active
+    
+    # Set simulation active to prevent monitoring thread from interfering
+    is_simulation_active = True
     
     # Set connection to unstable
     connection_status = "unstable"
@@ -321,9 +352,11 @@ def simulate_rapid_switching():
     # Schedule switching back after 6 seconds
     def switch_back():
         time.sleep(6)
-        global connection_status, current_feed
+        global connection_status, current_feed, is_simulation_active
         connection_status = "stable"
         current_feed = "live"
+        # Reset simulation flag
+        is_simulation_active = False
         print("Connection set back to stable after simulation")
     
     # Start the timer in a separate thread
